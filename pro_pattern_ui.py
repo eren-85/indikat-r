@@ -380,17 +380,19 @@ def ohlc_to_lw_data(ohlc_view: pd.DataFrame):
     """Convert to Lightweight Charts format"""
     data = []
     for t, row in ohlc_view.iterrows():
-        # Handle both DatetimeIndex and integer index
+        # TradingView Lightweight Charts format
+        # Supports: Unix timestamp (seconds) or YYYY-MM-DD string
         if isinstance(t, pd.Timestamp):
-            time_str = t.isoformat()
-        elif hasattr(t, 'isoformat'):
-            time_str = t.isoformat()
+            # Use Unix timestamp for better compatibility
+            time_value = int(t.timestamp())
+        elif hasattr(t, 'timestamp'):
+            time_value = int(t.timestamp())
         else:
-            # Fallback for integer or other types
-            time_str = str(t)
+            # Fallback: use row index as timestamp
+            time_value = int(pd.Timestamp('2023-01-01').timestamp()) + (len(data) * 3600)
 
         data.append({
-            "time": time_str,
+            "time": time_value,
             "open": float(row["open"]),
             "high": float(row["high"]),
             "low": float(row["low"]),
@@ -409,9 +411,15 @@ def build_active_markers(manager: PatternManager, current_idx: int, enabled_patt
 
     markers = []
     for p in active:
+        # Convert entry time to Unix timestamp
+        if isinstance(p.entry_time, pd.Timestamp):
+            entry_timestamp = int(p.entry_time.timestamp())
+        else:
+            entry_timestamp = int(pd.Timestamp(p.entry_time).timestamp())
+
         # Entry marker
         markers.append({
-            "time": p.entry_time.isoformat(),
+            "time": entry_timestamp,
             "position": "belowBar" if p.side == "long" else "aboveBar",
             "color": "#2ecc71" if p.side == "long" else "#e74c3c",
             "shape": "arrowUp" if p.side == "long" else "arrowDown",
