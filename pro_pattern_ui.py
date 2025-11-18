@@ -518,7 +518,13 @@ def build_pattern_lines(manager: PatternManager, current_idx: int, enabled_patte
 
 
 def build_dc_markers(result: dict, ohlc: pd.DataFrame, start_idx: int, sigma: float = 0.02):
-    """Build Directional Change markers"""
+    """Build Directional Change markers
+
+    DC format: [conf_i, ext_i, ext_p]
+    - conf_i: confirmation index
+    - ext_i: extreme index (the actual top/bottom point)
+    - ext_p: extreme price
+    """
 
     if 'dc_levels' not in result or sigma not in result['dc_levels']:
         return []
@@ -530,10 +536,11 @@ def build_dc_markers(result: dict, ohlc: pd.DataFrame, start_idx: int, sigma: fl
     markers = []
     index = ohlc.index
 
-    # Tops
-    for idx in tops:
-        if idx >= start_idx and idx < len(index):
-            timestamp = int(index[idx].timestamp())
+    # Tops - each top is [conf_i, ext_i, ext_p]
+    for dc_point in tops:
+        ext_i = dc_point[1]  # Get extreme index
+        if ext_i >= start_idx and ext_i < len(index):
+            timestamp = int(index[ext_i].timestamp())
             markers.append({
                 "time": timestamp,
                 "position": "aboveBar",
@@ -543,10 +550,11 @@ def build_dc_markers(result: dict, ohlc: pd.DataFrame, start_idx: int, sigma: fl
                 "size": 1
             })
 
-    # Bottoms
-    for idx in bottoms:
-        if idx >= start_idx and idx < len(index):
-            timestamp = int(index[idx].timestamp())
+    # Bottoms - each bottom is [conf_i, ext_i, ext_p]
+    for dc_point in bottoms:
+        ext_i = dc_point[1]  # Get extreme index
+        if ext_i >= start_idx and ext_i < len(index):
+            timestamp = int(index[ext_i].timestamp())
             markers.append({
                 "time": timestamp,
                 "position": "belowBar",
