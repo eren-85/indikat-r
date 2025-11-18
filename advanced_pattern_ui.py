@@ -209,8 +209,8 @@ def build_pattern_overlays(result, start_idx: int, ohlc: pd.DataFrame, show_line
                     "color": "#2ecc71",
                     "width": 2,
                     "points": [
-                        {"time": index[p.X].isoformat(), "price": float(close[p.X])},
-                        {"time": index[p.A].isoformat(), "price": float(close[p.A])},
+                        {"time": int(index[p.X].timestamp()), "price": float(close[p.X])},
+                        {"time": int(index[p.A].timestamp()), "price": float(close[p.A])},
                     ],
                     "label": pattern_name
                 })
@@ -219,8 +219,8 @@ def build_pattern_overlays(result, start_idx: int, ohlc: pd.DataFrame, show_line
                     "color": "#2ecc71",
                     "width": 2,
                     "points": [
-                        {"time": index[p.A].isoformat(), "price": float(close[p.A])},
-                        {"time": index[p.B].isoformat(), "price": float(close[p.B])},
+                        {"time": int(index[p.A].timestamp()), "price": float(close[p.A])},
+                        {"time": int(index[p.B].timestamp()), "price": float(close[p.B])},
                     ]
                 })
                 overlays.append({
@@ -228,8 +228,8 @@ def build_pattern_overlays(result, start_idx: int, ohlc: pd.DataFrame, show_line
                     "color": "#2ecc71",
                     "width": 2,
                     "points": [
-                        {"time": index[p.B].isoformat(), "price": float(close[p.B])},
-                        {"time": index[p.C].isoformat(), "price": float(close[p.C])},
+                        {"time": int(index[p.B].timestamp()), "price": float(close[p.B])},
+                        {"time": int(index[p.C].timestamp()), "price": float(close[p.C])},
                     ]
                 })
                 overlays.append({
@@ -237,8 +237,8 @@ def build_pattern_overlays(result, start_idx: int, ohlc: pd.DataFrame, show_line
                     "color": "#2ecc71",
                     "width": 2,
                     "points": [
-                        {"time": index[p.C].isoformat(), "price": float(close[p.C])},
-                        {"time": index[p.D].isoformat(), "price": float(close[p.D])},
+                        {"time": int(index[p.C].timestamp()), "price": float(close[p.C])},
+                        {"time": int(index[p.D].timestamp()), "price": float(close[p.D])},
                     ]
                 })
             except:
@@ -255,8 +255,8 @@ def build_pattern_overlays(result, start_idx: int, ohlc: pd.DataFrame, show_line
                     "color": "#e74c3c",
                     "width": 2,
                     "points": [
-                        {"time": index[p.X].isoformat(), "price": float(close[p.X])},
-                        {"time": index[p.A].isoformat(), "price": float(close[p.A])},
+                        {"time": int(index[p.X].timestamp()), "price": float(close[p.X])},
+                        {"time": int(index[p.A].timestamp()), "price": float(close[p.A])},
                     ],
                     "label": pattern_name
                 })
@@ -265,8 +265,8 @@ def build_pattern_overlays(result, start_idx: int, ohlc: pd.DataFrame, show_line
                     "color": "#e74c3c",
                     "width": 2,
                     "points": [
-                        {"time": index[p.A].isoformat(), "price": float(close[p.A])},
-                        {"time": index[p.B].isoformat(), "price": float(close[p.B])},
+                        {"time": int(index[p.A].timestamp()), "price": float(close[p.A])},
+                        {"time": int(index[p.B].timestamp()), "price": float(close[p.B])},
                     ]
                 })
                 overlays.append({
@@ -274,8 +274,8 @@ def build_pattern_overlays(result, start_idx: int, ohlc: pd.DataFrame, show_line
                     "color": "#e74c3c",
                     "width": 2,
                     "points": [
-                        {"time": index[p.B].isoformat(), "price": float(close[p.B])},
-                        {"time": index[p.C].isoformat(), "price": float(close[p.C])},
+                        {"time": int(index[p.B].timestamp()), "price": float(close[p.B])},
+                        {"time": int(index[p.C].timestamp()), "price": float(close[p.C])},
                     ]
                 })
                 overlays.append({
@@ -283,8 +283,8 @@ def build_pattern_overlays(result, start_idx: int, ohlc: pd.DataFrame, show_line
                     "color": "#e74c3c",
                     "width": 2,
                     "points": [
-                        {"time": index[p.C].isoformat(), "price": float(close[p.C])},
-                        {"time": index[p.D].isoformat(), "price": float(close[p.D])},
+                        {"time": int(index[p.C].timestamp()), "price": float(close[p.C])},
+                        {"time": int(index[p.D].timestamp()), "price": float(close[p.D])},
                     ]
                 })
             except:
@@ -315,7 +315,7 @@ def build_signals_from_patterns(
             tp1_price = entry_price - risk
 
             signals.append({
-                "time": t_break.isoformat(),
+                "time": int(t_break.timestamp()),
                 "side": "short",
                 "pattern": "H&S",
                 "entry": entry_price,
@@ -335,7 +335,7 @@ def build_signals_from_patterns(
             tp1_price = entry_price + risk
 
             signals.append({
-                "time": t_break.isoformat(),
+                "time": int(t_break.timestamp()),
                 "side": "long",
                 "pattern": "Inverse H&S",
                 "entry": entry_price,
@@ -361,7 +361,7 @@ def build_signals_from_patterns(
                     tp1_price = entry_price - risk
 
                 signals.append({
-                    "time": t_conf.isoformat(),
+                    "time": int(t_conf.timestamp()),
                     "side": side,
                     "pattern": label,
                     "entry": entry_price,
@@ -393,7 +393,7 @@ def build_signals_from_patterns(
                 tp1_price = entry_price + risk
 
                 signals.append({
-                    "time": t_D.isoformat(),
+                    "time": int(t_D.timestamp()),
                     "side": "long",
                     "pattern": f"{name} (Bull)",
                     "entry": float(entry_price),
@@ -434,8 +434,16 @@ def ohlc_to_lw_data(ohlc_view: pd.DataFrame):
     """Convert OHLC dataframe to Lightweight Charts format"""
     data = []
     for t, row in ohlc_view.iterrows():
+        # Use Unix timestamp for TradingView compatibility
+        if isinstance(t, pd.Timestamp):
+            time_value = int(t.timestamp())
+        elif hasattr(t, 'timestamp'):
+            time_value = int(t.timestamp())
+        else:
+            time_value = int(pd.Timestamp('2023-01-01').timestamp()) + (len(data) * 3600)
+
         data.append({
-            "time": t.isoformat(),
+            "time": time_value,
             "open": float(row["open"]),
             "high": float(row["high"]),
             "low": float(row["low"]),
