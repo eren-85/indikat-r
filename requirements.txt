@@ -1,0 +1,17 @@
+# Core dependencies
+pandas>=1.5.0
+numpy>=1.23.0
+scipy>=1.9.0
+
+# Visualization
+matplotlib>=3.6.0
+mplfinance>=0.12.0
+
+# Web UI
+streamlit>=1.25.0
+
+# Data handling
+python-dateutil>=2.8.2
+
+# Optional: Pattern Mining (only needed for pip_pattern_miner.py)
+# pyclustering>=0.10.1

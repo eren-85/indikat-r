@@ -4,7 +4,20 @@ import matplotlib.pyplot as plt
 import mplfinance as mpf
 import scipy
 import math
-import pandas_ta as ta
+
+
+def calculate_atr(high, low, close, period=14):
+    """Calculate Average True Range manually"""
+    tr = np.maximum(
+        high - low,
+        np.maximum(
+            np.abs(high - np.roll(close, 1)),
+            np.abs(low - np.roll(close, 1))
+        )
+    )
+    tr[0] = high[0] - low[0]  # First TR
+    atr = pd.Series(tr).rolling(window=period).mean()
+    return atr
 
 
 def find_levels( 
@@ -49,8 +62,8 @@ def support_resistance_levels(
         first_w: float = 0.01, atr_mult:float=3.0, prom_thresh:float =0.25
 ):
 
-    # Get log average true range, 
-    atr = ta.atr(np.log(data['high']), np.log(data['low']), np.log(data['close']), lookback)
+    # Get log average true range
+    atr = calculate_atr(np.log(data['high']), np.log(data['low']), np.log(data['close']), lookback)
 
     all_levels = [None] * len(data)
     for i in range(lookback, len(data)):
