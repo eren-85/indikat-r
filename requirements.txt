@@ -12,6 +12,10 @@ streamlit>=1.25.0
 
 # Data handling
 python-dateutil>=2.8.2
+requests>=2.28.0
+
+# Optional: Data sources
+yfinance  # Yahoo Finance data
 
 # Optional: Pattern Mining (only needed for pip_pattern_miner.py)
 # pyclustering>=0.10.1

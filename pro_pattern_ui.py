@@ -23,6 +23,7 @@ from directional_change import get_extremes, directional_change
 from mp_support_resist import support_resistance_levels
 from trendline_automation import fit_trendlines_high_low
 from pattern_manager import PatternManager, PatternState, calculate_pattern_max_bars
+from data_downloader import download_binance, download_multiple_binance, validate_ohlc
 
 
 st.set_page_config(
@@ -91,7 +92,7 @@ if 'current_view_index' not in st.session_state:
 
 @st.cache_data(show_spinner=False)
 def load_ohlc(csv_path=None, file_bytes=None) -> pd.DataFrame:
-    """Load OHLC data"""
+    """Load OHLC data and ensure datetime index"""
     if file_bytes is not None:
         df = pd.read_csv(io.BytesIO(file_bytes))
     elif csv_path:
@@ -99,9 +100,21 @@ def load_ohlc(csv_path=None, file_bytes=None) -> pd.DataFrame:
     else:
         raise ValueError("csv_path veya file_bytes gerekli.")
 
+    # Ensure datetime index
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"])
         df = df.set_index("date")
+    elif not isinstance(df.index, pd.DatetimeIndex):
+        # If no date column and index is not datetime, try to convert index
+        try:
+            df.index = pd.to_datetime(df.index)
+        except:
+            # If conversion fails, create a datetime index
+            st.warning("⚠️ CSV'de 'date' kolonu bulunamadı. Otomatik datetime index oluşturuluyor...")
+            df['date'] = pd.date_range(start='2023-01-01', periods=len(df), freq='h')
+            df = df.set_index('date')
+
+    df.index.name = 'date'
     df = df.sort_index()
     return df
 
@@ -110,6 +123,7 @@ def load_ohlc(csv_path=None, file_bytes=None) -> pd.DataFrame:
 def detect_patterns(
     csv_path=None,
     file_bytes=None,
+    dataframe=None,
     hs_order: int = 6,
     flag_order: int = 10,
     sigma: float = 0.02,
@@ -117,7 +131,10 @@ def detect_patterns(
 ):
     """Detect all patterns"""
 
-    ohlc = load_ohlc(csv_path=csv_path, file_bytes=file_bytes)
+    if dataframe is not None:
+        ohlc = dataframe
+    else:
+        ohlc = load_ohlc(csv_path=csv_path, file_bytes=file_bytes)
 
     # Log version
     ohlc_log = ohlc.copy()
@@ -363,8 +380,17 @@ def ohlc_to_lw_data(ohlc_view: pd.DataFrame):
     """Convert to Lightweight Charts format"""
     data = []
     for t, row in ohlc_view.iterrows():
+        # Handle both DatetimeIndex and integer index
+        if isinstance(t, pd.Timestamp):
+            time_str = t.isoformat()
+        elif hasattr(t, 'isoformat'):
+            time_str = t.isoformat()
+        else:
+            # Fallback for integer or other types
+            time_str = str(t)
+
         data.append({
-            "time": t.isoformat(),
+            "time": time_str,
             "open": float(row["open"]),
             "high": float(row["high"]),
             "low": float(row["low"]),
@@ -423,18 +449,61 @@ def build_sr_lines(result, current_idx: int, ohlc: pd.DataFrame):
 st.sidebar.markdown("## 📊 Veri Kaynağı")
 
 data_source = st.sidebar.radio(
-    "Kaynak",
-    ["📁 Dosya Yolu", "📤 CSV Yükle"],
+    "Kaynak Seç",
+    ["📁 Dosya Yolu", "📤 CSV Yükle", "🌐 Binance İndir"],
     index=0
 )
 
 csv_path = None
 uploaded_file = None
+downloaded_data = None
 
 if data_source == "📁 Dosya Yolu":
     csv_path = st.sidebar.text_input("CSV dosya yolu", "BTCUSDT3600.csv")
-else:
+
+elif data_source == "📤 CSV Yükle":
     uploaded_file = st.sidebar.file_uploader("CSV dosyası", type=["csv"])
+
+elif data_source == "🌐 Binance İndir":
+    st.sidebar.markdown("### Binance Ayarları")
+
+    symbol = st.sidebar.text_input("Sembol", "BTCUSDT")
+
+    interval = st.sidebar.selectbox(
+        "Timeframe",
+        ["1m", "5m", "15m", "1h", "4h", "1d"],
+        index=3  # 1h default
+    )
+
+    num_candles = st.sidebar.number_input(
+        "Mum sayısı",
+        min_value=100,
+        max_value=5000,
+        value=1000,
+        step=100
+    )
+
+    if st.sidebar.button("📥 İndir", key="download_btn"):
+        with st.spinner(f"📡 {symbol} verisi indiriliyor..."):
+            try:
+                if num_candles <= 1000:
+                    downloaded_data = download_binance(symbol, interval, num_candles)
+                else:
+                    downloaded_data = download_multiple_binance(symbol, interval, num_candles)
+
+                st.sidebar.success(f"✅ {len(downloaded_data)} mum indirildi!")
+                st.sidebar.info(f"📅 {downloaded_data.index[0]} - {downloaded_data.index[-1]}")
+
+                # Save to session state
+                st.session_state['downloaded_data'] = downloaded_data
+
+            except Exception as e:
+                st.sidebar.error(f"❌ Hata: {e}")
+                downloaded_data = None
+
+    # Check if data exists in session state
+    if 'downloaded_data' in st.session_state:
+        downloaded_data = st.session_state['downloaded_data']
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("## ⚙️ Görünüm")
@@ -491,18 +560,30 @@ if data_source == "📁 Dosya Yolu":
         st.error("❌ CSV dosya yolu giriniz.")
         st.stop()
     file_bytes = None
-else:
+    use_dataframe = None
+
+elif data_source == "📤 CSV Yükle":
     if uploaded_file is None:
         st.warning("⚠️ CSV dosyası yükleyiniz.")
         st.stop()
     file_bytes = uploaded_file.getvalue()
     csv_path = None
+    use_dataframe = None
+
+elif data_source == "🌐 Binance İndir":
+    if downloaded_data is None:
+        st.warning("⚠️ 'İndir' butonuna basarak veri indirin.")
+        st.stop()
+    csv_path = None
+    file_bytes = None
+    use_dataframe = downloaded_data
 
 # Detect patterns
 with st.spinner("🔍 Pattern'ler tespit ediliyor..."):
     result = detect_patterns(
         csv_path=csv_path,
         file_bytes=file_bytes,
+        dataframe=use_dataframe,
         hs_order=hs_order,
         flag_order=flag_order,
         sigma=sigma,
