@@ -559,6 +559,204 @@ def build_dc_markers(result: dict, ohlc: pd.DataFrame, start_idx: int, sigma: fl
     return markers
 
 
+def build_pattern_overlays(result: dict, ohlc: pd.DataFrame, start_idx: int, enabled_patterns: List[str]):
+    """Build pattern geometry overlays (XABCD lines, H&S shapes)"""
+
+    index = ohlc.index
+    close = ohlc["close"].to_numpy()
+    overlays = []
+
+    # ========== HARMONIC PATTERNS XABCD Lines ==========
+    for pattern_name, info in result["harmonics"].items():
+        if pattern_name not in enabled_patterns:
+            continue
+
+        # Bull patterns (green)
+        for p in info["bull_patterns"]:
+            if p.X < start_idx:
+                continue
+            try:
+                # X-A
+                overlays.append({
+                    "type": "line",
+                    "color": "#26a69a",
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.X].timestamp()), "price": float(close[p.X])},
+                        {"time": int(index[p.A].timestamp()), "price": float(close[p.A])},
+                    ]
+                })
+                # A-B
+                overlays.append({
+                    "type": "line",
+                    "color": "#26a69a",
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.A].timestamp()), "price": float(close[p.A])},
+                        {"time": int(index[p.B].timestamp()), "price": float(close[p.B])},
+                    ]
+                })
+                # B-C
+                overlays.append({
+                    "type": "line",
+                    "color": "#26a69a",
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.B].timestamp()), "price": float(close[p.B])},
+                        {"time": int(index[p.C].timestamp()), "price": float(close[p.C])},
+                    ]
+                })
+                # C-D
+                overlays.append({
+                    "type": "line",
+                    "color": "#26a69a",
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.C].timestamp()), "price": float(close[p.C])},
+                        {"time": int(index[p.D].timestamp()), "price": float(close[p.D])},
+                    ]
+                })
+            except:
+                pass
+
+        # Bear patterns (red)
+        for p in info["bear_patterns"]:
+            if p.X < start_idx:
+                continue
+            try:
+                # X-A
+                overlays.append({
+                    "type": "line",
+                    "color": "#ef5350",
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.X].timestamp()), "price": float(close[p.X])},
+                        {"time": int(index[p.A].timestamp()), "price": float(close[p.A])},
+                    ]
+                })
+                # A-B
+                overlays.append({
+                    "type": "line",
+                    "color": "#ef5350",
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.A].timestamp()), "price": float(close[p.A])},
+                        {"time": int(index[p.B].timestamp()), "price": float(close[p.B])},
+                    ]
+                })
+                # B-C
+                overlays.append({
+                    "type": "line",
+                    "color": "#ef5350",
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.B].timestamp()), "price": float(close[p.B])},
+                        {"time": int(index[p.C].timestamp()), "price": float(close[p.C])},
+                    ]
+                })
+                # C-D
+                overlays.append({
+                    "type": "line",
+                    "color": "#ef5350",
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.C].timestamp()), "price": float(close[p.C])},
+                        {"time": int(index[p.D].timestamp()), "price": float(close[p.D])},
+                    ]
+                })
+            except:
+                pass
+
+    # ========== HEAD & SHOULDERS Patterns ==========
+    if "H&S" in enabled_patterns:
+        ohlc_log = result["ohlc_log"]
+        log_close = ohlc_log["close"].to_numpy()
+
+        for pat in result["hs"]:
+            if pat.start_i < start_idx:
+                continue
+            try:
+                # Neckline
+                overlays.append({
+                    "type": "line",
+                    "color": "#ff6b6b",
+                    "width": 2,
+                    "style": "dashed",
+                    "points": [
+                        {"time": int(index[pat.ls_i].timestamp()), "price": float(np.exp(pat.neck_start))},
+                        {"time": int(index[pat.rs_i].timestamp()), "price": float(np.exp(pat.neck_end))},
+                    ]
+                })
+            except:
+                pass
+
+    if "Inverse H&S" in enabled_patterns:
+        ohlc_log = result["ohlc_log"]
+        log_close = ohlc_log["close"].to_numpy()
+
+        for pat in result["ihs"]:
+            if pat.start_i < start_idx:
+                continue
+            try:
+                # Neckline
+                overlays.append({
+                    "type": "line",
+                    "color": "#51cf66",
+                    "width": 2,
+                    "style": "dashed",
+                    "points": [
+                        {"time": int(index[pat.ls_i].timestamp()), "price": float(np.exp(pat.neck_start))},
+                        {"time": int(index[pat.rs_i].timestamp()), "price": float(np.exp(pat.neck_end))},
+                    ]
+                })
+            except:
+                pass
+
+    # ========== FLAGS & PENNANTS ==========
+    flag_patterns = []
+    if "Bull Flag" in enabled_patterns:
+        flag_patterns.extend([("bull_flags", "#26a69a")])
+    if "Bear Flag" in enabled_patterns:
+        flag_patterns.extend([("bear_flags", "#ef5350")])
+    if "Bull Pennant" in enabled_patterns:
+        flag_patterns.extend([("bull_pennants", "#26a69a")])
+    if "Bear Pennant" in enabled_patterns:
+        flag_patterns.extend([("bear_pennants", "#ef5350")])
+
+    for pattern_key, color in flag_patterns:
+        for p in result[pattern_key]:
+            if p.base_x < start_idx:
+                continue
+            try:
+                # Pole line
+                overlays.append({
+                    "type": "line",
+                    "color": color,
+                    "width": 2,
+                    "points": [
+                        {"time": int(index[p.pole_x].timestamp()), "price": float(np.exp(p.pole_y))},
+                        {"time": int(index[p.base_x].timestamp()), "price": float(np.exp(p.base_y))},
+                    ]
+                })
+                # Flag trendlines (if available)
+                if hasattr(p, 'flag_upper_trend') and hasattr(p, 'flag_lower_trend'):
+                    # Upper trendline
+                    overlays.append({
+                        "type": "line",
+                        "color": color,
+                        "width": 1,
+                        "style": "dashed",
+                        "points": [
+                            {"time": int(index[p.base_x].timestamp()), "price": float(np.exp(p.base_y))},
+                            {"time": int(index[p.conf_x].timestamp()), "price": float(np.exp(p.conf_y))},
+                        ]
+                    })
+            except:
+                pass
+
+    return overlays
+
+
 def build_sr_lines(result, current_idx: int, ohlc: pd.DataFrame):
     """Build S/R level lines for current view"""
 
@@ -652,6 +850,7 @@ lookback = st.sidebar.slider(
 
 show_sr = st.sidebar.checkbox("Support/Resistance göster", True)
 show_dc = st.sidebar.checkbox("Directional Change göster", True)
+show_pattern_shapes = st.sidebar.checkbox("Pattern şekillerini çiz", True, help="XABCD çizgileri, H&S neckline, Flag pole")
 
 dc_sigma_select = st.sidebar.select_slider(
     "DC Sigma Seviyesi",
@@ -854,6 +1053,7 @@ with st.expander("🔍 Tespit Detayları (Debug)"):
         st.write(f"- **Toplam Marker: {len(all_markers)}**")
         st.write(f"- Pattern TP/SL Lines: {len(pattern_lines)}")
         st.write(f"- SR Lines: {len(sr_lines)}")
+        st.write(f"- **Pattern Overlays: {len(pattern_overlays)}**")
 
 st.markdown("---")
 
@@ -874,10 +1074,14 @@ all_markers = active_markers + completed_markers + dc_markers
 pattern_lines = build_pattern_lines(manager, current_idx, enabled_patterns, ohlc, start_idx)
 sr_lines = build_sr_lines(result, current_idx, ohlc) if show_sr else []
 
+# Build pattern overlays (XABCD, H&S shapes)
+pattern_overlays = build_pattern_overlays(result, ohlc, start_idx, enabled_patterns) if show_pattern_shapes else []
+
 lw_data_json = json.dumps(chart_data)
 markers_json = json.dumps(all_markers)
 pattern_lines_json = json.dumps(pattern_lines)
 sr_lines_json = json.dumps(sr_lines)
+overlays_json = json.dumps(pattern_overlays)
 
 html = f"""
 <div id="tvchart" style="width: 100%; height: 700px;"></div>
@@ -937,6 +1141,22 @@ html = f"""
             axisLabelVisible: true,
             title: 'S/R',
         }});
+    }});
+
+    // Pattern overlays (XABCD lines, H&S necklines, Flag poles)
+    const overlays = {overlays_json};
+    overlays.forEach(overlay => {{
+        if (overlay.type === 'line') {{
+            const lineSeries = chart.addLineSeries({{
+                color: overlay.color,
+                lineWidth: overlay.width || 2,
+                lineStyle: overlay.style === 'dashed' ? 1 : 0,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                crosshairMarkerVisible: false,
+            }});
+            lineSeries.setData(overlay.points);
+        }}
     }});
 
     new ResizeObserver(entries => {{

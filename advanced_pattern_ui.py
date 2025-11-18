@@ -838,6 +838,22 @@ html = f"""
         }});
     }});
 
+    // Pattern overlays (XABCD lines, H&S necklines, Flag poles)
+    const overlays = {overlays_json};
+    overlays.forEach(overlay => {{
+        if (overlay.type === 'line') {{
+            const lineSeries = chart.addLineSeries({{
+                color: overlay.color,
+                lineWidth: overlay.width || 2,
+                lineStyle: overlay.style === 'dashed' ? 1 : 0,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                crosshairMarkerVisible: false,
+            }});
+            lineSeries.setData(overlay.points);
+        }}
+    }});
+
     // Responsive
     new ResizeObserver(entries => {{
         if (entries.length === 0 || entries[0].target !== container) {{
