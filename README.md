@@ -2,6 +2,22 @@
 
 Profesyonel teknik analiz pattern tespit sistemi. TradingView Lightweight Charts ile görselleştirme.
 
+## 🚀 İki Sistem Seçeneği
+
+### 1. **PRO SYSTEM** (Önerilen) - `pro_pattern_ui.py`
+✅ Pattern lifecycle management (ACTIVE/TP_HIT/STOP_HIT/EXPIRED)
+✅ Sadece aktif pattern'ler gösterilir
+✅ Real-time TP/Stop monitoring
+✅ Performance statistics
+✅ Pattern toggle controls
+
+### 2. **BASIC SYSTEM** - `advanced_pattern_ui.py`
+✅ Tüm pattern'leri göster
+✅ Basit kullanım
+✅ Hızlı analiz
+
+**Önerilen:** Trading için **PRO SYSTEM** kullanın.
+
 ## ✨ Özellikler
 
 ### 📊 Pattern Tespiti
@@ -37,8 +53,30 @@ Profesyonel teknik analiz pattern tespit sistemi. TradingView Lightweight Charts
 pip install -r requirements.txt
 ```
 
-### 2. Uygulamayı Başlat
+### 2. Örnek Veri Oluştur (İlk kez)
 
+```bash
+python sample_data_generator.py
+```
+
+### 3. Sistemi Test Et
+
+```bash
+# Pattern detection test
+python test_patterns.py
+
+# Pro system test
+python test_pro_system.py
+```
+
+### 4. Uygulamayı Başlat
+
+**PRO SYSTEM (Önerilen):**
+```bash
+streamlit run pro_pattern_ui.py
+```
+
+**BASIC SYSTEM:**
 ```bash
 streamlit run advanced_pattern_ui.py
 ```
@@ -145,20 +183,39 @@ Pattern tespiti fonksiyonları:
 
 ```
 indikat-r/
-├── advanced_pattern_ui.py      # Ana Streamlit UI
-├── pattern_lw_ui.py            # Basit UI (eski)
-├── head_shoulders.py           # H&S pattern detection
-├── flags_pennants.py           # Flag & Pennant detection
-├── harmonic_patterns.py        # Harmonic patterns
-├── directional_change.py       # Zigzag algorithm
-├── rolling_window.py           # Local extrema
-├── perceptually_important.py   # PIP algorithm
-├── trendline_automation.py     # Trend lines
-├── mp_support_resist.py        # S/R levels
-├── retracement_ratios.py       # Fibonacci analysis
-├── pip_pattern_miner.py        # Pattern mining
-├── wf_pip_miner.py            # Walk-forward mining
-└── requirements.txt            # Dependencies
+├── 🚀 UYGULAMALAR
+│   ├── pro_pattern_ui.py           # PRO: Lifecycle management
+│   ├── advanced_pattern_ui.py      # BASIC: Tüm pattern'ler
+│   └── pattern_lw_ui.py            # LEGACY: Eski UI
+│
+├── 🔧 PATTERN DETECTION
+│   ├── head_shoulders.py           # H&S pattern detection
+│   ├── flags_pennants.py           # Flag & Pennant detection
+│   ├── harmonic_patterns.py        # Harmonic patterns (XABCD)
+│   └── pattern_manager.py          # Pattern lifecycle engine
+│
+├── 📊 ALGORİTMALAR
+│   ├── directional_change.py       # Zigzag algorithm
+│   ├── rolling_window.py           # Local extrema
+│   ├── perceptually_important.py   # PIP algorithm
+│   ├── trendline_automation.py     # Trend lines
+│   ├── mp_support_resist.py        # S/R levels
+│   └── retracement_ratios.py       # Fibonacci analysis
+│
+├── 🧪 PATTERN MINING (Advanced)
+│   ├── pip_pattern_miner.py        # Pattern mining
+│   └── wf_pip_miner.py             # Walk-forward mining
+│
+├── 📝 TESTLER VE VERI
+│   ├── test_patterns.py            # Pattern detection tests
+│   ├── test_pro_system.py          # Pro system tests
+│   └── sample_data_generator.py    # Veri oluşturucu
+│
+└── 📚 DOKÜMANTASYON
+    ├── README.md                    # Ana dokümantasyon
+    ├── QUICKSTART.md                # Hızlı başlangıç
+    ├── PRO_SYSTEM_GUIDE.md          # Pro sistem rehberi
+    └── requirements.txt             # Dependencies
 ```
 
 ## 🎯 Algoritma Kaynakları
