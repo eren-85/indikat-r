@@ -476,6 +476,82 @@ def build_sr_levels(result, start_idx: int, ohlc: pd.DataFrame):
     return sr_lines
 
 
+def build_dc_markers(result: dict, ohlc: pd.DataFrame, start_idx: int, sigma: float = 0.02):
+    """Build Directional Change markers"""
+    if 'dc_levels' not in result or sigma not in result['dc_levels']:
+        return []
+
+    dc = result['dc_levels'][sigma]
+    tops = dc['tops']
+    bottoms = dc['bottoms']
+
+    markers = []
+    index = ohlc.index
+
+    # Tops
+    for idx in tops:
+        if idx >= start_idx and idx < len(index):
+            timestamp = int(index[idx].timestamp())
+            markers.append({
+                "time": timestamp,
+                "position": "aboveBar",
+                "color": "#9b59b6",
+                "shape": "circle",
+                "text": "DC⬇",
+                "size": 1
+            })
+
+    # Bottoms
+    for idx in bottoms:
+        if idx >= start_idx and idx < len(index):
+            timestamp = int(index[idx].timestamp())
+            markers.append({
+                "time": timestamp,
+                "position": "belowBar",
+                "color": "#e67e22",
+                "shape": "circle",
+                "text": "DC⬆",
+                "size": 1
+            })
+
+    return markers
+
+
+def build_tpsl_lines(signals: list):
+    """Build TP/SL horizontal lines from signals"""
+    lines = []
+
+    for sig in signals:
+        # TP line
+        lines.append({
+            "price": float(sig["tp1"]),
+            "color": "#2ecc71",
+            "width": 1,
+            "style": 2,  # dashed
+            "title": f"TP {sig['pattern']}"
+        })
+
+        # SL line
+        lines.append({
+            "price": float(sig["stop"]),
+            "color": "#e74c3c",
+            "width": 1,
+            "style": 2,  # dashed
+            "title": f"SL {sig['pattern']}"
+        })
+
+        # Entry line
+        lines.append({
+            "price": float(sig["entry"]),
+            "color": "#f39c12",
+            "width": 1,
+            "style": 3,  # dotted
+            "title": f"Entry {sig['pattern']}"
+        })
+
+    return lines
+
+
 # ======================= SIDEBAR =======================
 
 st.sidebar.markdown("## 📊 Veri Kaynağı")
@@ -514,6 +590,8 @@ max_per_type = st.sidebar.slider(
 
 show_pattern_lines = st.sidebar.checkbox("Pattern çizgilerini göster", True)
 show_sr_levels = st.sidebar.checkbox("Support/Resistance göster", True)
+show_dc = st.sidebar.checkbox("Directional Change göster", True)
+show_tpsl_lines = st.sidebar.checkbox("TP/SL çizgilerini göster", True)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("## 🎯 Pattern Ayarları")
@@ -615,6 +693,8 @@ signals = build_signals_from_patterns(result, start_idx, max_per_type, ohlc)
 chart_data = ohlc_to_lw_data(ohlc_view)
 overlays = build_pattern_overlays(result, start_idx, ohlc, show_pattern_lines)
 sr_lines = build_sr_levels(result, start_idx, ohlc) if show_sr_levels else []
+dc_markers = build_dc_markers(result, ohlc, start_idx, sigma) if show_dc else []
+tpsl_lines = build_tpsl_lines(signals) if show_tpsl_lines else []
 
 # --- Statistics ---
 
@@ -668,6 +748,8 @@ lw_data_json = json.dumps(chart_data)
 signals_json = json.dumps(signals)
 overlays_json = json.dumps(overlays)
 sr_lines_json = json.dumps(sr_lines)
+dc_markers_json = json.dumps(dc_markers)
+tpsl_lines_json = json.dumps(tpsl_lines)
 
 html = f"""
 <div id="tvchart" style="width: 100%; height: 700px;"></div>
@@ -710,6 +792,7 @@ html = f"""
     candleSeries.setData(data);
 
     const signals = {signals_json};
+    const dcMarkers = {dc_markers_json};
     const markers = [];
 
     signals.forEach(sig => {{
@@ -722,7 +805,25 @@ html = f"""
         }});
     }});
 
+    // Add DC markers
+    dcMarkers.forEach(dc => {{
+        markers.push(dc);
+    }});
+
     candleSeries.setMarkers(markers);
+
+    // TP/SL/Entry lines
+    const tpslLines = {tpsl_lines_json};
+    tpslLines.forEach(line => {{
+        candleSeries.createPriceLine({{
+            price: line.price,
+            color: line.color,
+            lineWidth: line.width,
+            lineStyle: line.style,
+            axisLabelVisible: true,
+            title: line.title,
+        }});
+    }});
 
     // Support/Resistance levels
     const srLevels = {sr_lines_json};

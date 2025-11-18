@@ -401,8 +401,8 @@ def ohlc_to_lw_data(ohlc_view: pd.DataFrame):
     return data
 
 
-def build_active_markers(manager: PatternManager, current_idx: int, enabled_patterns: List[str]):
-    """Build markers for active patterns only"""
+def build_active_markers(manager: PatternManager, current_idx: int, enabled_patterns: List[str], ohlc: pd.DataFrame):
+    """Build markers for active patterns - Entry, TP, SL"""
 
     active = manager.get_active_patterns(current_idx)
 
@@ -423,9 +423,138 @@ def build_active_markers(manager: PatternManager, current_idx: int, enabled_patt
             "position": "belowBar" if p.side == "long" else "aboveBar",
             "color": "#2ecc71" if p.side == "long" else "#e74c3c",
             "shape": "arrowUp" if p.side == "long" else "arrowDown",
-            "text": f"{p.pattern_type} [{p.bars_active}bars]",
+            "text": f"E:{p.entry_price:.2f}",
+            "size": 2
+        })
+
+    return markers
+
+
+def build_completed_markers(manager: PatternManager, enabled_patterns: List[str], ohlc: pd.DataFrame, start_idx: int):
+    """Build markers for completed patterns"""
+
+    completed = []
+    for p in manager.patterns:
+        if p.state != PatternState.ACTIVE and p.pattern_type in enabled_patterns:
+            if p.entry_index >= start_idx:  # Only show in visible range
+                completed.append(p)
+
+    markers = []
+    for p in completed:
+        # Entry marker
+        if isinstance(p.entry_time, pd.Timestamp):
+            entry_timestamp = int(p.entry_time.timestamp())
+        else:
+            entry_timestamp = int(pd.Timestamp(p.entry_time).timestamp())
+
+        # Exit marker
+        if isinstance(p.exit_time, pd.Timestamp):
+            exit_timestamp = int(p.exit_time.timestamp())
+        else:
+            exit_timestamp = int(pd.Timestamp(p.exit_time).timestamp())
+
+        # Entry
+        markers.append({
+            "time": entry_timestamp,
+            "position": "belowBar" if p.side == "long" else "aboveBar",
+            "color": "#888",
+            "shape": "circle",
+            "text": f"E",
             "size": 1
         })
+
+        # Exit (TP or SL)
+        exit_color = "#2ecc71" if p.state == PatternState.TP_HIT else "#e74c3c"
+        exit_text = "TP" if p.state == PatternState.TP_HIT else "SL"
+
+        markers.append({
+            "time": exit_timestamp,
+            "position": "aboveBar" if p.side == "long" else "belowBar",
+            "color": exit_color,
+            "shape": "circle",
+            "text": exit_text,
+            "size": 1
+        })
+
+    return markers
+
+
+def build_pattern_lines(manager: PatternManager, current_idx: int, enabled_patterns: List[str], ohlc: pd.DataFrame, start_idx: int):
+    """Build TP/SL horizontal price lines for active patterns"""
+
+    active = manager.get_active_patterns(current_idx)
+    active = [p for p in active if p.pattern_type in enabled_patterns]
+
+    lines = []
+    for p in active:
+        # TP line
+        lines.append({
+            "price": float(p.tp1_price),
+            "color": "#2ecc71",
+            "width": 2,
+            "style": 2,  # dashed
+            "title": f"TP {p.pattern_type}"
+        })
+
+        # SL line
+        lines.append({
+            "price": float(p.stop_price),
+            "color": "#e74c3c",
+            "width": 2,
+            "style": 2,  # dashed
+            "title": f"SL {p.pattern_type}"
+        })
+
+        # Entry line
+        lines.append({
+            "price": float(p.entry_price),
+            "color": "#f39c12",
+            "width": 1,
+            "style": 3,  # dotted
+            "title": f"Entry {p.pattern_type}"
+        })
+
+    return lines
+
+
+def build_dc_markers(result: dict, ohlc: pd.DataFrame, start_idx: int, sigma: float = 0.02):
+    """Build Directional Change markers"""
+
+    if 'dc_levels' not in result or sigma not in result['dc_levels']:
+        return []
+
+    dc = result['dc_levels'][sigma]
+    tops = dc['tops']
+    bottoms = dc['bottoms']
+
+    markers = []
+    index = ohlc.index
+
+    # Tops
+    for idx in tops:
+        if idx >= start_idx and idx < len(index):
+            timestamp = int(index[idx].timestamp())
+            markers.append({
+                "time": timestamp,
+                "position": "aboveBar",
+                "color": "#9b59b6",
+                "shape": "circle",
+                "text": "DC⬇",
+                "size": 1
+            })
+
+    # Bottoms
+    for idx in bottoms:
+        if idx >= start_idx and idx < len(index):
+            timestamp = int(index[idx].timestamp())
+            markers.append({
+                "time": timestamp,
+                "position": "belowBar",
+                "color": "#e67e22",
+                "shape": "circle",
+                "text": "DC⬆",
+                "size": 1
+            })
 
     return markers
 
@@ -522,7 +651,14 @@ lookback = st.sidebar.slider(
 )
 
 show_sr = st.sidebar.checkbox("Support/Resistance göster", True)
-show_dc = st.sidebar.checkbox("Directional Change göster", False)
+show_dc = st.sidebar.checkbox("Directional Change göster", True)
+
+dc_sigma_select = st.sidebar.select_slider(
+    "DC Sigma Seviyesi",
+    options=[0.01, 0.02, 0.03],
+    value=0.02,
+    help="Directional Change hassasiyet seviyesi"
+) if show_dc else 0.02
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("## 🎯 Pattern Tespiti")
@@ -677,15 +813,70 @@ with col4:
 
 st.markdown("---")
 
+# ======================= DEBUG INFO =======================
+
+with st.expander("🔍 Tespit Detayları (Debug)"):
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.write("**Pattern Tespitleri:**")
+        st.write(f"- H&S: {len(result['hs'])}")
+        st.write(f"- Inverse H&S: {len(result['ihs'])}")
+        st.write(f"- Bull Flags: {len(result['bull_flags'])}")
+        st.write(f"- Bear Flags: {len(result['bear_flags'])}")
+        st.write(f"- Bull Pennants: {len(result['bull_pennants'])}")
+        st.write(f"- Bear Pennants: {len(result['bear_pennants'])}")
+
+        total_harmonics = sum(
+            len(info['bull_patterns']) + len(info['bear_patterns'])
+            for info in result['harmonics'].values()
+        )
+        st.write(f"- Harmonics: {total_harmonics}")
+
+    with col2:
+        st.write("**S/R & DC:**")
+        sr_count = 0
+        if result['sr_levels'] and current_idx < len(result['sr_levels']):
+            if result['sr_levels'][current_idx]:
+                sr_count = len(result['sr_levels'][current_idx])
+        st.write(f"- SR Seviyeleri: {sr_count}")
+
+        dc_tops = len(result['dc_levels'][dc_sigma_select]['tops']) if show_dc else 0
+        dc_bottoms = len(result['dc_levels'][dc_sigma_select]['bottoms']) if show_dc else 0
+        st.write(f"- DC Tops: {dc_tops}")
+        st.write(f"- DC Bottoms: {dc_bottoms}")
+
+    with col3:
+        st.write("**Marker Sayıları:**")
+        st.write(f"- Aktif Pattern Marker: {len(active_markers)}")
+        st.write(f"- Tamamlanmış Pattern Marker: {len(completed_markers)}")
+        st.write(f"- DC Marker: {len(dc_markers)}")
+        st.write(f"- **Toplam Marker: {len(all_markers)}**")
+        st.write(f"- Pattern TP/SL Lines: {len(pattern_lines)}")
+        st.write(f"- SR Lines: {len(sr_lines)}")
+
+st.markdown("---")
+
 # ======================= CHART =======================
 
 ohlc_view = ohlc.iloc[start_idx:]
 chart_data = ohlc_to_lw_data(ohlc_view)
-markers = build_active_markers(manager, current_idx, enabled_patterns)
+
+# Build markers
+active_markers = build_active_markers(manager, current_idx, enabled_patterns, ohlc)
+completed_markers = build_completed_markers(manager, enabled_patterns, ohlc, start_idx) if show_completed else []
+dc_markers = build_dc_markers(result, ohlc, start_idx, dc_sigma_select) if show_dc else []
+
+# Combine all markers
+all_markers = active_markers + completed_markers + dc_markers
+
+# Build lines
+pattern_lines = build_pattern_lines(manager, current_idx, enabled_patterns, ohlc, start_idx)
 sr_lines = build_sr_lines(result, current_idx, ohlc) if show_sr else []
 
 lw_data_json = json.dumps(chart_data)
-markers_json = json.dumps(markers)
+markers_json = json.dumps(all_markers)
+pattern_lines_json = json.dumps(pattern_lines)
 sr_lines_json = json.dumps(sr_lines)
 
 html = f"""
@@ -721,6 +912,19 @@ html = f"""
 
     candleSeries.setData({lw_data_json});
     candleSeries.setMarkers({markers_json});
+
+    // Pattern TP/SL/Entry lines
+    const patternLines = {pattern_lines_json};
+    patternLines.forEach(line => {{
+        candleSeries.createPriceLine({{
+            price: line.price,
+            color: line.color,
+            lineWidth: line.width,
+            lineStyle: line.style,
+            axisLabelVisible: true,
+            title: line.title,
+        }});
+    }});
 
     // S/R levels
     const srLevels = {sr_lines_json};
