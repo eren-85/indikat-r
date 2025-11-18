@@ -1012,6 +1012,26 @@ with col4:
 
 st.markdown("---")
 
+# ======================= CHART =======================
+
+ohlc_view = ohlc.iloc[start_idx:]
+chart_data = ohlc_to_lw_data(ohlc_view)
+
+# Build markers
+active_markers = build_active_markers(manager, current_idx, enabled_patterns, ohlc)
+completed_markers = build_completed_markers(manager, enabled_patterns, ohlc, start_idx) if show_completed else []
+dc_markers = build_dc_markers(result, ohlc, start_idx, dc_sigma_select) if show_dc else []
+
+# Combine all markers
+all_markers = active_markers + completed_markers + dc_markers
+
+# Build lines
+pattern_lines = build_pattern_lines(manager, current_idx, enabled_patterns, ohlc, start_idx)
+sr_lines = build_sr_lines(result, current_idx, ohlc) if show_sr else []
+
+# Build pattern overlays (XABCD, H&S shapes)
+pattern_overlays = build_pattern_overlays(result, ohlc, start_idx, enabled_patterns) if show_pattern_shapes else []
+
 # ======================= DEBUG INFO =======================
 
 with st.expander("🔍 Tespit Detayları (Debug)"):
@@ -1056,26 +1076,6 @@ with st.expander("🔍 Tespit Detayları (Debug)"):
         st.write(f"- **Pattern Overlays: {len(pattern_overlays)}**")
 
 st.markdown("---")
-
-# ======================= CHART =======================
-
-ohlc_view = ohlc.iloc[start_idx:]
-chart_data = ohlc_to_lw_data(ohlc_view)
-
-# Build markers
-active_markers = build_active_markers(manager, current_idx, enabled_patterns, ohlc)
-completed_markers = build_completed_markers(manager, enabled_patterns, ohlc, start_idx) if show_completed else []
-dc_markers = build_dc_markers(result, ohlc, start_idx, dc_sigma_select) if show_dc else []
-
-# Combine all markers
-all_markers = active_markers + completed_markers + dc_markers
-
-# Build lines
-pattern_lines = build_pattern_lines(manager, current_idx, enabled_patterns, ohlc, start_idx)
-sr_lines = build_sr_lines(result, current_idx, ohlc) if show_sr else []
-
-# Build pattern overlays (XABCD, H&S shapes)
-pattern_overlays = build_pattern_overlays(result, ohlc, start_idx, enabled_patterns) if show_pattern_shapes else []
 
 lw_data_json = json.dumps(chart_data)
 markers_json = json.dumps(all_markers)
